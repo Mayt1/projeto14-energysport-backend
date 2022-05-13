@@ -3,6 +3,7 @@ import cors from 'cors';
 import bcrypt from "bcrypt"
 import dotenv from "dotenv";
 //import { v4 as uuid } from 'uuid';
+import jwt from "jsonwebtoken"
 
 import { MongoClient } from "mongodb";
 import schemaUser from "./schemaUser.js";
@@ -52,10 +53,35 @@ app.post('/signup', async (req, res) => {
     }
 });
 
-app.get("/",(req, res) => {
-    console.log("funfando")
-    res.send("funfando aqui tb")
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        await mongoClient.connect()
+        const db = mongoClient.db(process.env.DATABASE);
+        const user = await db.collection('users').findOne({ email: email }); //encontra usuario
+
+        if (user && bcrypt.compareSync(password, user.password)) {
+
+            const sessao = await db.collection("sessions").insertOne({
+                userId: user._id,
+            })
+            console.log(sessao.insertedId)
+            const sessionId = { session: sessao.insertedId };
+            const secretKey = process.env.JWT_SECRET;
+            const configurationJwt = {expiresIn: 60*60*24*30 } //30dias em segundos
+            const token = jwt.sign(sessionId, secretKey, configurationJwt);
+            await db.collection("sessions").updateOne({_id: sessao.insertedId}, {$set: {'token': token}})
+            res.send(token);
+        } else {
+            console.log("usuario nao encontrado ou senha incorreta")
+            res.sendStatus(404);
+        }
+    } catch (e) {
+        console.error("Banco de dados nao foi conectado, tente novamente" + e);
+        res.sendStatus(422);
+    }
 });
+
 
 app.listen(process.env.PORTA, () => {
     console.log("Back-end funcionando, nao esquece de desligar a cada atualizaçao")

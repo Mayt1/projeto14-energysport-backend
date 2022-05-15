@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 //import { v4 as uuid } from 'uuid';
 import jwt from "jsonwebtoken"
 
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import schemaUser from "./schemaUser.js";
 
 dotenv.config();
@@ -16,7 +16,6 @@ app.use(cors());
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 
 app.post('/signup', async (req, res) => {
-
     const { name, email,  password, confirmPassword } = req.body;
     const hashSenha = bcrypt.hashSync(password, 10)
     try {
@@ -61,7 +60,6 @@ app.post('/login', async (req, res) => {
         const user = await db.collection('users').findOne({ email: email }); //encontra usuario
 
         if (user && bcrypt.compareSync(password, user.password)) {
-
             const sessao = await db.collection("sessions").insertOne({
                 userId: user._id,
             })
@@ -82,6 +80,40 @@ app.post('/login', async (req, res) => {
     }
 });
 
+app.get("/usuario", async (req, res) => {
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+    const secretKey = process.env.JWT_SECRET;
+    if (!token) {//se tiver token
+            console.log("voce nao tem autorizaçao")
+            return res.sendStatus(401);
+        }
+    try {//validatoken
+        const sessionId = jwt.verify(token, secretKey);
+	    //console.log(sessionId.session) //sessionId.session mostra o conteudo que veio com o token, q é o id da sessao do usuario.
+        await mongoClient.connect()
+        const db = mongoClient.db(process.env.DATABASE);
+        const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
+        console.log(userId);
+        const user = await db.collection("users").findOne({_id: userId});
+        console.log(user);
+        if(user) {
+            delete user.password; // deletando a propriedade password
+            res.send(user);
+        } else {
+            console.log("Não foi possivel encontrar o usuario nessa sessão")
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.error("token invalido" + e);
+        return res.sendStatus(422);
+    }
+});
+
+app.post("/logout", async (req,res) => {
+    //
+
+});
 
 app.listen(process.env.PORTA, () => {
     console.log("Back-end funcionando, nao esquece de desligar a cada atualizaçao")

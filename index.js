@@ -112,7 +112,7 @@ app.get("/usuario", async (req, res) => {
 
 app.post("/logout", async (req,res) => {
     //
-
+    console.log("teste")
 });
 
 const port = process.env.PORTA || 5000;

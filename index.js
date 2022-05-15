@@ -115,6 +115,7 @@ app.post("/logout", async (req,res) => {
 
 });
 
-app.listen(process.env.PORTA, () => {
+const port = process.env.PORTA || 5000;
+app.listen(port, () => {
     console.log("Back-end funcionando, nao esquece de desligar a cada atualizaçao")
 });

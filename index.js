@@ -140,6 +140,111 @@ app.delete("/disconnect", async (req,res) => {
     }
 });
 
+app.get("/products", async (req, res) => {
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+    const secretKey = process.env.JWT_SECRET;
+    if (!token) {//se tiver token
+            console.log("voce nao tem autorizaçao")
+            return res.sendStatus(401);
+    }
+    const {type} = req.query;
+    const limit = parseInt(req.query.limit);
+	console.log(limit, type)
+    if(!type){
+        if(!limit){
+            //retorna tudo
+            try {
+                await mongoClient.connect()
+                const db = mongoClient.db(process.env.DATABASE);
+                const allproducts = await db.collection("products").find().toArray();
+                console.log("tamo certo sem filtro");
+                if(allproducts) {
+                    res.send(allproducts);
+                } else {
+                    console.log("Não foi possivel encontrar os produtos")
+                    res.sendStatus(401);
+                }
+            } catch (e) {
+                console.error("Banco nao foi conectado" + e);
+                return res.sendStatus(422);
+            }
+        } else{
+            //sem filtro mas com limite de produtos
+            try {
+                await mongoClient.connect()
+                const db = mongoClient.db(process.env.DATABASE);
+                const typedProducts = await db.collection("products").find().limit(limit).toArray();
+                console.log("tamo certo sem filtro mas com limite");
+                if(typedProducts) {
+                    res.send(typedProducts);
+                } else {
+                    console.log("Não foi possivel encontrar os produtos")
+                    res.sendStatus(401);
+                }
+            } catch (e) {
+                console.error("Banco nao foi conectado" + e);
+                return res.sendStatus(422);
+            } 
+        }
+    }else{
+        console.log("tem tipo, entao retorna so daquele tipo")
+        if(!limit){
+            try {
+                await mongoClient.connect()
+                const db = mongoClient.db(process.env.DATABASE);
+                const typedProducts = await db.collection("products").find({type: type}).toArray();
+                console.log("tamo certo filtro com tipo sem limite");
+                if(typedProducts) {
+                    res.send(typedProducts);
+                } else {
+                    console.log("Não foi possivel encontrar os produtos")
+                    res.sendStatus(401);
+                }
+            } catch (e) {
+                console.error("Banco nao foi conectado" + e);
+                return res.sendStatus(422);
+            }
+        } else{
+            try {
+                await mongoClient.connect()
+                const db = mongoClient.db(process.env.DATABASE);
+                const typedProducts = await db.collection("products").find({type: type}).limit(limit).toArray();
+                console.log("tamo certo filtro com tipo e limite");
+                if(typedProducts) {
+                    res.send(typedProducts);
+                } else {
+                    console.log("Não foi possivel encontrar os produtos")
+                    res.sendStatus(401);
+                }
+            } catch (e) {
+                console.error("Banco nao foi conectado" + e);
+                return res.sendStatus(422);
+            } 
+        }
+    }
+});
+
+app.post("/inserir", async (req, res) => {
+
+    const { name, img, type, price, sale, parcel } = req.body;
+    try {
+        await mongoClient.connect()
+        const db = mongoClient.db(process.env.DATABASE);
+        await db.collection("products").insertOne({
+            name: name,
+            img: img,
+            type: type,
+            price: price,
+            sale: sale,
+            parcel: parcel
+        });
+        res.status(201).send("Produto cadastrado com sucesso");
+    } catch (e) {
+        console.error(e);
+        res.sendStatus(422);
+    }
+});
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {

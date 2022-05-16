@@ -110,10 +110,36 @@ app.get("/usuario", async (req, res) => {
     }
 });
 
-app.post("/logout", async (req,res) => {
-    //
-    console.log("teste2")
+app.delete("/disconnect", async (req,res) => {
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+    const secretKey = process.env.JWT_SECRET;
+    if (!token) {//se n tiver token
+            console.log("voce nao tem autorizaçao")
+            return res.sendStatus(401);
+    } else {
+        try {//validatoken
+            const sessionId = jwt.verify(token, secretKey);
+            //console.log(sessionId.session) //sessionId.session mostra o conteudo que veio com o token, q é o id da sessao do usuario.
+            await mongoClient.connect()
+            const db = mongoClient.db(process.env.DATABASE);
+            console.log(sessionId)
+            const del = await db.collection("sessions").deleteOne({_id:new ObjectId(sessionId.session)}, (err) => {
+                //new ObjectId
+                console.log(del)
+                if(err) {
+                    return res.sendStatus(400)
+                } else {
+                    return res.sendStatus(204)
+                }
+            })
+        } catch (e) {
+            console.error("token invalido" + e);
+            return res.sendStatus(422);
+        }
+    }
 });
+
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {

@@ -365,7 +365,7 @@ app.delete("/cart", async (req, res) => {
     const token = authorization?.replace('Bearer ', '');
     console.log(token)
     const secretKey = process.env.JWT_SECRET;
-    const {idProd} = req.body;
+    const {idProd} = req.headers;
     if (!token) {//se n tiver token
             console.log("voce nao tem autorizaçao")
             return res.sendStatus(401);

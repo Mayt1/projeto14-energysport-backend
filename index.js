@@ -59,11 +59,11 @@ app.post('/login', async (req, res) => {
     try {
         await mongoClient.connect()
         const db = mongoClient.db(process.env.DATABASE);
-        const user = await db.collection('users').findOne({ email: user }); //encontra usuario
+        const usere = await db.collection('users').findOne({ email: user }); //encontra usuario
 
-        if (user && bcrypt.compareSync(password, user.password)) {
+        if (usere && bcrypt.compareSync(password, usere.password)) {
             const sessao = await db.collection("sessions").insertOne({
-                userId: user._id,
+                userId: usere._id,
             })
             console.log(sessao.insertedId)
             const sessionId = { session: sessao.insertedId };

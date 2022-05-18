@@ -16,7 +16,8 @@ app.use(cors());
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 
 app.post('/signup', async (req, res) => {
-    const { name, email,  password, confirmPassword } = req.body;
+    const { name,  password, confirmPassword } = req.body;
+    const { user } = req.header
     const hashSenha = bcrypt.hashSync(password, 10)
     try {
         await mongoClient.connect()
@@ -30,7 +31,7 @@ app.post('/signup', async (req, res) => {
 
         const validation = await schemaUser.validateAsync({
             name: name,
-            email: email,
+            email: user,
             password: password,
             confirmPassword: confirmPassword
         });
@@ -38,7 +39,7 @@ app.post('/signup', async (req, res) => {
         if (!validation.error) {
             await db.collection("users").insertOne({
                 name: name,
-                email: email,
+                email: user,
                 password: hashSenha
             });
         } else {
@@ -248,7 +249,7 @@ app.post("/cart", async (req, res) => {
             console.log("voce nao tem autorizaçao")
             return res.sendStatus(401);
         }
-    const {idProd, qtd} = req.body;
+    const {idProd} = req.body;
     try {
         const sessionId = jwt.verify(token, secretKey);
         await mongoClient.connect()
@@ -256,13 +257,23 @@ app.post("/cart", async (req, res) => {
         const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
         console.log(userId);
         if(userId) {
-             // deletando a propriedade password
-            await db.collection("cart").insertOne({
-                idProd: idProd,
-                idUser: userId,
-                qtd:qtd
-            });
-            res.status(201).send("Produto cadastrado no carrinho com sucesso");
+            if(!idCart){
+                await db.collection("cart").insertOne({
+                    idProd: idProd,
+                    idUser: userId,
+                    qtd:1
+                });
+                res.status(201).send("Produto cadastrado no carrinho com sucesso");
+            } else {
+                const idCart = await db.collection("cart").findOne({idProd:idProd})
+                console.log(idCart)
+                await db.collection("cart").updateOne({idProd:idCart.idProd}, {
+                $inc: {
+                    qtd: 1
+                }
+            })
+            res.status(201).send("Produto cadastrado no carrinho com sucesso"); 
+            }
         } else {
             console.log("Não foi possivel encontrar o usuario nessa sessão")
             res.sendStatus(401);
@@ -281,19 +292,27 @@ app.get("/cart", async (req, res) => {
             console.log("voce nao tem autorizaçao")
             return res.sendStatus(401);
         }
+    const {idProd} = req.body;
     try {
         const sessionId = jwt.verify(token, secretKey);
         await mongoClient.connect()
         const db = mongoClient.db(process.env.DATABASE);
         const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
-        console.log(userId);
+        //console.log(userId);
         if(userId) {
-            const carrinho = await db.collection("cart").find({idUser: userId}).toArray();
+            const carrinho = await db.collection("cart").find({idUser: userId}).forEach.toArray();
             //pega o idProd do vetor de objetos carrinho e para cada um deles, encontrar os dados e jogar em um vetor de objeto
-            let resposta = []
+            console.log(carrinho.idProd)
 
+            let respostas = []
 
-            console.log(carrinho);
+            carrinho.forEach(async (item)=> {
+                const valor = await db.collection("products").findOne({idProd:item.idProd})
+                respostas.push(valor)
+                console.log(valor)
+            })
+            console.log(valor)
+            //let titulos = carrinho.map((indice,idProd) => respostas.push(idProd));
             res.status(201).send(carrinho);
         } else {
             console.log("Não foi possivel encontrar o usuario nessa sessão")
@@ -304,6 +323,46 @@ app.get("/cart", async (req, res) => {
         return res.sendStatus(422);
     }
 });
+
+app.put("/cart", async (req, res) => {
+    const {authorization} = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+    const secretKey = process.env.JWT_SECRET;
+    if (!token) {//se tiver token
+            console.log("voce nao tem autorizaçao")
+            return res.sendStatus(401);
+    }
+    try {
+        const sessionId = jwt.verify(token, secretKey);
+        await mongoClient.connect()
+        const db = mongoClient.db(process.env.DATABASE);
+        const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
+        //console.log(userId);
+        const {idProd, qtd} = req.body;
+        if(userId) {
+            const carrinho = await db.collection("cart").find({idUser: userId, idProd:idProd}).toArray();
+            await db.collection("cart").updateOne({idProd:idProd}, 
+                {$set: {
+                    qtd: qtd
+                }})
+            res.status(201).send("Mudança feita com sucesso");
+        } else {
+            console.log("Não foi possivel encontrar o usuario nessa sessão")
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.error("token invalido" + e);
+        return res.sendStatus(422);
+    }
+});
+
+
+//PUT cart
+//GET cart
+//DELETE cart
+//POST demand
+
+
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {

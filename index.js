@@ -258,6 +258,7 @@ app.post("/cart", async (req, res) => {
         const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
         console.log(userId);
         if(userId) {
+            const idCart = await db.collection("cart").findOne({idProd:idProd})
             if(!idCart){
                 await db.collection("cart").insertOne({
                     idProd: idProd,
@@ -266,7 +267,6 @@ app.post("/cart", async (req, res) => {
                 });
                 res.status(201).send("Produto cadastrado no carrinho com sucesso");
             } else {
-                const idCart = await db.collection("cart").findOne({idProd:idProd})
                 console.log(idCart)
                 await db.collection("cart").updateOne({idProd:idCart.idProd}, {
                 $inc: {

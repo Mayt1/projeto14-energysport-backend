@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from "bcrypt"
 import dotenv from "dotenv";
-//import { v4 as uuid } from 'uuid';
 import jwt from "jsonwebtoken"
 
 import { MongoClient, ObjectId } from "mongodb";
@@ -10,7 +9,7 @@ import schemaUser from "./schemaUser.js";
 
 dotenv.config();
 
-const app = express(); // Cria um servidor
+const app = express();
 app.use(express.json());
 app.use(cors());
 const mongoClient = new MongoClient(process.env.MONGO_URI);
@@ -356,6 +355,41 @@ app.get("/cart", async (req, res) => {
     } catch (e) {
         console.error("token invalido" + e);
         return res.sendStatus(422);
+    }
+});
+
+app.delete("/cart", async (req, res) => {
+    const { authorization } = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+    const secretKey = process.env.JWT_SECRET;
+    const {idProd} = req.body;
+    if (!token) {//se n tiver token
+            console.log("voce nao tem autorizaçao")
+            return res.sendStatus(401);
+    } else {
+        try {
+            const sessionId = jwt.verify(token, secretKey);
+            await mongoClient.connect()
+            const db = mongoClient.db(process.env.DATABASE);
+            const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
+            if(userId) {
+                const carrinho = await db.collection("cart").find({idProd: idProd, idUser:userId}).toArray();
+                console.log(carrinho[0]._id)
+                await db.collection("cart").deleteOne({_id:new ObjectId(carrinho[0]._id)}, (err) => {
+                    if(err) {
+                        return res.sendStatus(400)
+                    } else {
+                        return res.sendStatus(204)
+                    }
+                })
+            } else {
+                console.log("Não foi possivel encontrar o usuario nessa sessão")
+                res.sendStatus(401);
+            }
+        } catch (e) {
+            console.error("token invalido" + e);
+            return res.sendStatus(422);
+        }
     }
 });
 

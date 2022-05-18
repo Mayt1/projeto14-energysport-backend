@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken"
 
 import { MongoClient, ObjectId } from "mongodb";
 import schemaUser from "./schemaUser.js";
+import schemaAdress from "./schemaAdress.js";
 
 dotenv.config();
 
@@ -393,10 +394,73 @@ app.delete("/cart", async (req, res) => {
     }
 });
 
-//DELETE cart
-//POST demand
-
-
+app.post("/demand", async (req, res) => {
+    const { authorization } = req.headers;
+    const { cep, city, state, district, road, num, complement, value } = req.body;
+    const token = authorization?.replace('Bearer ', '');
+    const secretKey = process.env.JWT_SECRET;
+    if (!token) {//se tiver token
+            console.log("voce nao tem autorizaçao")
+            return res.sendStatus(401);
+        }
+    try {
+        const sessionId = jwt.verify(token, secretKey);
+        await mongoClient.connect()
+        const db = mongoClient.db(process.env.DATABASE);
+        const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
+        
+        const carrinho = await db.collection("cart").find({idUser: userId}).toArray();
+            //pega o idProd do vetor de objetos carrinho e para cada um deles, encontrar os dados e jogar em um vetor de objeto
+            //console.log(carrinho.idProd)
+            let idsprodutos = []
+            for(let i=0; i<carrinho.length; i++){
+                let aux = carrinho[i].idProd;
+                idsprodutos=[...idsprodutos, aux];
+                console.log(idsprodutos);
+            }
+            let respostas = []
+            for(let j=0; j<idsprodutos.length; j++){
+                const valor = await db.collection("products").findOne({_id:new ObjectId(idsprodutos[j])});
+                respostas=[...respostas, {...valor, qtd:carrinho[j].qtd}];
+                console.log(respostas);
+            }
+        if(userId) {
+            const validation = await schemaAdress.validateAsync({
+                cep: cep,
+                city: city,
+                state: state,
+                district: district,
+                road:road,
+                num:num,
+                complement:complement,
+                value:value
+            });
+            if (!validation.error) {
+                await db.collection("demands").insertOne({
+                    cep: cep,
+                    city: city,
+                    state: state,
+                    district: district,
+                    road:road,
+                    num:num,
+                    complement:complement,
+                    value:value,
+                    cartDetails: respostas,
+                });
+            } else {
+                console.log(validation.error.details)
+                return res.sendStatus(402);
+            }
+            res.status(201).send("Pedido feito com sucesso");
+        } else {
+            console.log("Não foi possivel encontrar o usuario nessa sessão")
+            res.sendStatus(404);
+        }
+    } catch (e) {
+        console.error("token invalido" + e);
+        return res.status(422).send(e.message);
+    }
+});
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {

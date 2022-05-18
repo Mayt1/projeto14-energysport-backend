@@ -17,7 +17,7 @@ const mongoClient = new MongoClient(process.env.MONGO_URI);
 
 app.post('/signup', async (req, res) => {
     const { name,  password, confirmPassword } = req.body;
-    const { user } = req.header
+    const { user } = req.headers
     const hashSenha = bcrypt.hashSync(password, 10)
     try {
         await mongoClient.connect()
@@ -54,11 +54,12 @@ app.post('/signup', async (req, res) => {
 });
 
 app.post('/login', async (req, res) => {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const {user} = req.headers
     try {
         await mongoClient.connect()
         const db = mongoClient.db(process.env.DATABASE);
-        const user = await db.collection('users').findOne({ email: email }); //encontra usuario
+        const user = await db.collection('users').findOne({ email: user }); //encontra usuario
 
         if (user && bcrypt.compareSync(password, user.password)) {
             const sessao = await db.collection("sessions").insertOne({
@@ -300,7 +301,7 @@ app.get("/cart", async (req, res) => {
         const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
         //console.log(userId);
         if(userId) {
-            const carrinho = await db.collection("cart").find({idUser: userId}).forEach.toArray();
+            const carrinho = await db.collection("cart").find({idUser: userId}).toArray();
             //pega o idProd do vetor de objetos carrinho e para cada um deles, encontrar os dados e jogar em um vetor de objeto
             console.log(carrinho.idProd)
 

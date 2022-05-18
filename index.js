@@ -281,7 +281,7 @@ app.post("/cart", async (req, res) => {
         }
     } catch (e) {
         console.error("token invalido" + e);
-        return res.sendStatus(422);
+        return res.status(422).send(e.message);
     }
 });
 

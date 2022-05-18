@@ -263,9 +263,9 @@ app.post("/cart", async (req, res) => {
                 await db.collection("cart").insertOne({
                     idProd: idProd,
                     idUser: userId,
-                    qtd:1
+                    qtd:1  
                 });
-                res.status(201).send("Produto cadastrado no carrinho com sucesso");
+                res.status(201).send(valor);
             } else {
                 console.log(idCart)
                 await db.collection("cart").updateOne({idProd:idCart.idProd}, {
@@ -282,46 +282,6 @@ app.post("/cart", async (req, res) => {
     } catch (e) {
         console.error("token invalido" + e);
         return res.status(422).send(e.message);
-    }
-});
-
-app.get("/cart", async (req, res) => {
-    const {authorization} = req.headers;
-    const token = authorization?.replace('Bearer ', '');
-    const secretKey = process.env.JWT_SECRET;
-    if (!token) {//se tiver token
-            console.log("voce nao tem autorizaçao")
-            return res.sendStatus(401);
-        }
-    const {idProd} = req.body;
-    try {
-        const sessionId = jwt.verify(token, secretKey);
-        await mongoClient.connect()
-        const db = mongoClient.db(process.env.DATABASE);
-        const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
-        //console.log(userId);
-        if(userId) {
-            const carrinho = await db.collection("cart").find({idUser: userId}).toArray();
-            //pega o idProd do vetor de objetos carrinho e para cada um deles, encontrar os dados e jogar em um vetor de objeto
-            console.log(carrinho.idProd)
-
-            let respostas = []
-
-            carrinho.forEach(async (item)=> {
-                const valor = await db.collection("products").findOne({idProd:item.idProd})
-                respostas.push(valor)
-                console.log(valor)
-            })
-            console.log(valor)
-            //let titulos = carrinho.map((indice,idProd) => respostas.push(idProd));
-            res.status(201).send(carrinho);
-        } else {
-            console.log("Não foi possivel encontrar o usuario nessa sessão")
-            res.sendStatus(401);
-        }
-    } catch (e) {
-        console.error("token invalido" + e);
-        return res.sendStatus(422);
     }
 });
 
@@ -357,9 +317,46 @@ app.put("/cart", async (req, res) => {
     }
 });
 
+app.get("/cart", async (req, res) => {
+    const {authorization} = req.headers;
+    const token = authorization?.replace('Bearer ', '');
+    const secretKey = process.env.JWT_SECRET;
+    if (!token) {//se tiver token
+            console.log("voce nao tem autorizaçao")
+            return res.sendStatus(401);
+        }
+    try {
+        const sessionId = jwt.verify(token, secretKey);
+        await mongoClient.connect()
+        const db = mongoClient.db(process.env.DATABASE);
+        const {userId} = await db.collection("sessions").findOne({_id: new ObjectId(sessionId.session)})
+        if(userId) {
+            const carrinho = await db.collection("cart").find({idUser: userId}).toArray();
+            //pega o idProd do vetor de objetos carrinho e para cada um deles, encontrar os dados e jogar em um vetor de objeto
+            //console.log(carrinho.idProd)
+            let idsprodutos = []
+            for(let i=0; i<carrinho.length; i++){
+                let aux = carrinho[i].idProd;
+                idsprodutos=[...idsprodutos, aux];
+                console.log(idsprodutos);
+            }
+            let respostas = []
+            for(let j=0; j<idsprodutos.length; j++){
+                const valor = await db.collection("products").findOne({_id:new ObjectId(idsprodutos[j])});
+                respostas=[...respostas, {...valor, qtd:carrinho[j].qtd}];
+                console.log(respostas);
+            }
+            res.status(201).send(respostas);
+        } else {
+            console.log("Não foi possivel encontrar o usuario nessa sessão")
+            res.sendStatus(401);
+        }
+    } catch (e) {
+        console.error("token invalido" + e);
+        return res.sendStatus(422);
+    }
+});
 
-//PUT cart
-//GET cart
 //DELETE cart
 //POST demand
 

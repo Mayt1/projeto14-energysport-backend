@@ -44,7 +44,7 @@ app.post('/signup', async (req, res) => {
             });
         } else {
             console.log(validation.error.details)
-            return res.sendStatus(422);
+            return res.sendStatus(402);
         }
         res.status(201).send("Usuario cadastrado com sucesso");
     } catch (e) {
@@ -71,7 +71,7 @@ app.post('/login', async (req, res) => {
             const configurationJwt = {expiresIn: 60*60*24*30 } //30dias em segundos
             const token = jwt.sign(sessionId, secretKey, configurationJwt);
             await db.collection("sessions").updateOne({_id: sessao.insertedId}, {$set: {'token': token}})
-            let resposta={token:token, name:user.name}
+            let resposta={token:token, name:usere.name}
             res.send(resposta);
         } else {
             console.log("usuario nao encontrado ou senha incorreta")

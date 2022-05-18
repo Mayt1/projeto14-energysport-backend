@@ -396,8 +396,10 @@ app.delete("/cart", async (req, res) => {
 
 app.post("/demand", async (req, res) => {
     const { authorization } = req.headers;
+    console.log(authorization)
     const { cep, city, state, district, road, num, complement, value } = req.body;
     const token = authorization?.replace('Bearer ', '');
+    console.log(token)
     const secretKey = process.env.JWT_SECRET;
     if (!token) {//se tiver token
             console.log("voce nao tem autorizaçao")

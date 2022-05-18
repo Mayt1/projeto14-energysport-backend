@@ -319,7 +319,9 @@ app.put("/cart", async (req, res) => {
 
 app.get("/cart", async (req, res) => {
     const {authorization} = req.headers;
+    console.log(authorization)
     const token = authorization?.replace('Bearer ', '');
+    console.log(token)
     const secretKey = process.env.JWT_SECRET;
     if (!token) {//se tiver token
             console.log("voce nao tem autorizaçao")
